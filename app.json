@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Slow",
+    "slug": "slow",
+    "version": "1.0.0",
+    "scheme": "slow",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF9F6"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.slow.checkin"
+    },
+    "android": {
+      "package": "app.slow.checkin",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      ["expo-image-picker", {"photosPermission": "Choose photos you would like to remember.", "cameraPermission": false, "microphonePermission": false}],
+      ["expo-notifications", {"color": "#637B6C"}]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
