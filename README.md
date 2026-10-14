@@ -14,7 +14,7 @@ or an Expo development build. The pinned Supabase CLI is installed by `npm ci`.
 npm ci
 npm run db:start
 node scripts/setup-local.mjs
-npm start
+npm start -- --go
 ```
 
 The setup script writes an ignored `.env` using the local anonymous key. It
@@ -41,9 +41,10 @@ With the emulator running:
 adb reverse tcp:54321 tcp:54321
 adb reverse tcp:54324 tcp:54324
 adb reverse tcp:8081 tcp:8081
-npx expo start --localhost --android
+npx expo start --localhost --go --android
 ```
 
+Use `--go` explicitly: this project also includes the development-client package.
 In Expo Go, the default callback is
 `exp://127.0.0.1:8081/--/auth/callback`, already allowed by local Supabase.
 Open Mailpit at `http://127.0.0.1:54324` in the emulator's browser and tap the

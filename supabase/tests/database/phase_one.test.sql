@@ -6,7 +6,7 @@ insert into auth.users(id, email) values
 ('11111111-1111-4111-8111-111111111111', 'first@phase-one.test'),
 ('22222222-2222-4222-8222-222222222222', 'second@phase-one.test');
 
-select is((select count(*)::integer from public.users), 2, 'auth trigger creates profiles');
+select is((select count(*)::integer from public.users where id in ('11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222')), 2, 'auth trigger creates profiles');
 select is((select count(*)::integer from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relname in ('users', 'survey_answers', 'photos', 'messages', 'feedback', 'notification_settings', 'sky_events', 'llm_usage') and c.relrowsecurity), 8, 'all eight tables have RLS');
 select is((select public from storage.buckets where id = 'memories'), false, 'photo bucket is private');
 
