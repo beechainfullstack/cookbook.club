@@ -1,9 +1,10 @@
-# Slow · Phase 1
+# Slow · Phases 1–2
 
 A calm, personal check-in app for iOS and Android. Expo SDK 54, React Native,
-TypeScript, and Supabase. **Phase 1 only:** sign-in, survey, notification
-preferences, and the minimal home screen. There are no scheduled sends, LLM
-calls, feedback submissions, sky calculations, SMS, or store releases here.
+TypeScript, and Supabase. Sign-in, survey, notification preferences, minimal
+home, and a durable weekly message loop. See [Phase 2 setup, guardrails, manual
+send, and costs](docs/phase-two.md). Live delivery requires your provider/project
+configuration; it is not enabled by installing the app. Phase 3 is not included.
 
 ## Run locally (free)
 
@@ -19,7 +20,8 @@ npm start -- --go
 
 The setup script writes an ignored `.env` using the local anonymous key. It
 never copies the service-role key into the app. If `.env` already exists, it
-refuses to overwrite it. `.env.example` documents all Phase 1 app variables.
+refuses to overwrite it. `.env.example` documents app variables; server-only
+keys are in `supabase/functions/.env.example`.
 
 - Supabase Studio: `http://127.0.0.1:54323`
 - Local email inbox (Mailpit): `http://127.0.0.1:54324`
@@ -53,9 +55,9 @@ that exact URL ending in `/--/auth/callback`, add it to
 `auth.additional_redirect_urls` in `supabase/config.toml`, then restart
 Supabase and Expo. For a native development build, use `slow://auth/callback`.
 
-Push permission is requested only when the push switch is turned on. Remote
-push is **not** implemented in this phase. Expo Go on Android SDK 53+ cannot
-receive remote push; use a development build when implementing Phase 2.
+Push registration is requested only when the push switch is turned on. Expo Go
+cannot receive this app's remote push; use an EAS development build with real
+FCM/APNs credentials and the Expo project ID. Email works without native push.
 
 ### iOS simulator
 
@@ -64,8 +66,8 @@ Expo development build. Start Expo, choose the iOS simulator, and open the
 local Mailpit email in Safari on that simulator. Register the exact Expo Go
 callback as described above if it differs. No iOS simulator can run on Linux.
 
-EAS configuration is provided for future cloud builds. Creating EAS projects,
-signed builds, TestFlight, and Google Play distribution are later-phase work.
+EAS configuration supports development builds for push verification. Signed
+store releases, TestFlight, and Google Play distribution remain Phase 3 work.
 The `app.slow.checkin` native identifiers are provisional and should be
 confirmed before distribution.
 
@@ -90,7 +92,7 @@ database are used, but web does not implement native push permission.
    capture date. The server records the upload date.
 5. Choose email/push, a day, local 24-hour time, and timezone. Push is off by
    default; email is on. Both can be turned off without blocking setup.
-6. Finish setup. Home shows a quiet empty state until Phase 2 sends a note.
+6. Finish setup. Home shows a quiet empty state until the first note is sent.
 7. In Studio, inspect `public.users`, `survey_answers`,
    `notification_settings`, and (if used) `photos` plus the private `memories`
    bucket. The row's `user_id` matches the signed-in Auth user.
@@ -112,7 +114,7 @@ The migration defines all eight entities from the spec:
 
 Every table has RLS. Authenticated users can read only their profile, answers,
 settings, photos, delivered messages, and feedback. Clients cannot write
-generated messages, feedback, computed sky data, LLM spend, safety holds,
+generated messages, computed sky data, LLM spend, safety holds,
 onboarding completion timestamps, or star mode. Completion is a checked RPC
 that requires all required answers and notification preferences. Deleting an
 Auth user cascades database records; storage-object cleanup and a user-facing
@@ -124,11 +126,11 @@ are never used in the app. Auth refresh tokens are stored in the native app's
 AsyncStorage, following the Supabase React Native client setup; a production
 security review before release should consider encrypted session storage.
 
-The messaging tables are schema only. Phase 2 must implement the batched
-weekly job, crisis handling, static cacheable prompts, budget checking and
-alert email, and token/cost logging **before any generation can run**.
-`MONTHLY_LLM_BUDGET_USD` is reserved in `.env.example` for the future server
-environment and is not used by Phase 1.
+Feedback insert/update is restricted to the user's own sent messages. Queue,
+delivery, budget, and usage operations are server-only. Phase 2 adds a weekly
+pg_cron batch and bounded worker, crisis holds, static prompts, atomic budget
+reservations, token/cost logs, push/email adapters, and signed email feedback.
+Server credentials and Vault activation are required before live sends.
 
 ## Verification
 
@@ -138,6 +140,9 @@ npm run typecheck
 npm run lint
 npm run test:db              # 24 pgTAP schema/ownership checks, transaction rolled back
 npm run test:integration     # Real local email magic-link flow and REST/storage checks
+npm run test:weekly          # Real local queue/feedback/ledger, provider HTTP test doubles
+npm run typecheck:edge       # Deno 2 required
+npm run lint:edge
 npx supabase db lint --local --level error
 npx expo-doctor
 npm run build:mobile         # iOS + Android JS/Hermes exports, not signed binaries
@@ -180,7 +185,7 @@ Native upgrades. Resolve compatible updates and recheck before a beta release.
 
 ## Stopping point
 
-Phase 2 and later remain untouched: no weekly loop, feedback submission,
-Resend check-in delivery, Expo push delivery/tokens, Anthropic calls, sky jobs,
-star alignment, photo resurfacing, SMS, public privacy page, in-app deletion,
-or store releases. Phase 1 is not a beta-ready build.
+Phase 3 and later remain untouched: no store release, public privacy page,
+in-app account deletion, sky jobs, star alignment, photo resurfacing, or SMS.
+This is not yet a beta-store-ready build. See the Phase 2 guide for activation
+requirements and an honest distinction between local doubles and live testing.
