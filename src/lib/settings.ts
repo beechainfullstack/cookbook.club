@@ -6,6 +6,7 @@ export type Preferences = {
   timezone: string;
   channels: Channel[];
   paused: boolean;
+  expo_push_token?: string | null;
 };
 
 export function localTimezone(): string {

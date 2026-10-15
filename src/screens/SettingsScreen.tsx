@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Brand, Body, Button, ErrorText, Heading, Screen } from '../components/ui';
 import { supabase } from '../lib/supabase';
+import { detachPushToken } from '../lib/notifications';
 
 export function SettingsScreen({ onEdit, onPreferences, onBack }: { onEdit: () => void; onPreferences: () => void; onBack: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -8,8 +9,12 @@ export function SettingsScreen({ onEdit, onPreferences, onBack }: { onEdit: () =
   async function signOut() {
     setBusy(true);
     setError(null);
-    const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
-    if (signOutError) setError('Couldn’t sign out. Please try again.');
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) await detachPushToken(data.user.id);
+      const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+      if (signOutError) throw signOutError;
+    } catch { setError('Couldn’t sign out. Check your connection and try again.'); }
     setBusy(false);
   }
   return <Screen footer={<Button title="Back" quiet onPress={onBack} disabled={busy} />}>

@@ -2,7 +2,7 @@ import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState } from 'react-native';
+import { ActivityIndicator, AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Brand, Body, Button, colors, ErrorText, Heading, Screen } from './src/components/ui';
 import { parseAuthCallback } from './src/lib/auth-url';
@@ -13,6 +13,8 @@ import { PreferencesScreen } from './src/screens/PreferencesScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
 import { SignInScreen } from './src/screens/SignInScreen';
 import { SurveyScreen } from './src/screens/SurveyScreen';
+import { EmailFeedbackScreen } from './src/screens/EmailFeedbackScreen';
+import { listenForNotes, syncPushToken } from './src/lib/notifications';
 
 type Route = 'survey' | 'preferences' | 'home' | 'settings';
 
@@ -38,6 +40,28 @@ function SignedInApp({ session }: { session: Session }) {
   }, [refresh]);
 
   useEffect(() => { void initialize(); }, [initialize]);
+  useEffect(() => {
+    let active = true;
+    let cleanup: (() => void) | undefined;
+    void listenForNotes(() => { void refresh().catch(() => {}); }).then((unsubscribe) => {
+      if (active) cleanup = unsubscribe; else unsubscribe();
+    }).catch(() => {});
+    return () => { active = false; cleanup?.(); };
+  }, [refresh]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refresh().catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [refresh]);
+  const pushEnabled = data?.preferences?.channels.includes('push') ?? false;
+  useEffect(() => {
+    if (!pushEnabled || Platform.OS === 'web') return;
+    const sync = () => { void syncPushToken(userId).catch(() => {}); };
+    sync();
+    const subscription = AppState.addEventListener('change', (state) => { if (state === 'active') sync(); });
+    return () => subscription.remove();
+  }, [pushEnabled, userId]);
 
   if (error) return <Screen><Brand /><Heading>Let’s try again.</Heading><ErrorText message={error} />
     <Button title="Retry" onPress={initialize} /><Button title="Sign out" quiet onPress={() => { void supabase.auth.signOut({ scope: 'local' }); }} /></Screen>;
@@ -50,7 +74,7 @@ function SignedInApp({ session }: { session: Session }) {
     onSaved={async () => { await refresh(); setRoute('home'); }} onBack={() => setRoute(data.onboarded ? 'settings' : 'survey')} />;
   if (route === 'settings') return <SettingsScreen onBack={() => setRoute('home')}
     onEdit={() => { setSurveyReturn('settings'); setRoute('survey'); }} onPreferences={() => setRoute('preferences')} />;
-  return <HomeScreen lastMessage={data.lastMessage} onEdit={() => { setSurveyReturn('home'); setRoute('survey'); }} onSettings={() => setRoute('settings')} />;
+  return <HomeScreen userId={userId} lastMessage={data.lastMessage} lastFeedback={data.lastFeedback} onEdit={() => { setSurveyReturn('home'); setRoute('survey'); }} onSettings={() => setRoute('settings')} />;
 }
 
 function AppContent() {
@@ -100,5 +124,14 @@ function AppContent() {
 }
 
 export default function App() {
-  return <SafeAreaProvider><StatusBar style="dark" /><AppContent /></SafeAreaProvider>;
+  const [feedback] = useState(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const token = params.get('feedback_token');
+    if (!token) return null;
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    const rating = params.get('rating');
+    return { token, rating: rating === '1' ? 1 as const : rating === '-1' ? -1 as const : null };
+  });
+  return <SafeAreaProvider><StatusBar style="dark" />{feedback ? <EmailFeedbackScreen {...feedback} /> : <AppContent />}</SafeAreaProvider>;
 }
