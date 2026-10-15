@@ -85,7 +85,8 @@ async function deliverOne(db: Client, config: Config, delivery: Delivery, reques
   const channel = delivery.channel as 'email' | 'push';
   const recent = message.type === 'weekly' ? await checked(db.from('messages').select('id').eq('user_id', message.user_id)
     .neq('id', message.id).eq('type', 'weekly').gte('sent_at', new Date(Date.now() - 6 * 86400000).toISOString()).limit(1)) : [];
-  if (!settings || !user || recent?.length || settings.paused || !settings.channels.includes(channel) || message.state !== 'ready'
+  if (!settings || !user || recent?.length || settings.paused || !settings.channels.includes(channel)
+    || channel === 'push' && !settings.expo_push_token || message.state !== 'ready'
     || (message.type !== 'safety' && (user.messaging_hold || survey?.updated_at !== message.survey_updated_at))) {
     await checked(db.from('message_deliveries').update({ status: 'skipped', error_code: 'preferences_or_survey_changed' }).eq('id', delivery.id));
     return;

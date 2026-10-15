@@ -15,7 +15,8 @@
   Retrying a job does not regenerate an existing note. Delivery suppresses any
   different weekly note sent in the preceding six days. Missed delivery windows
   expire after 23 hours rather than sending a backlog.
-- Paused users and users with neither channel enabled are skipped. Preferences,
+- Paused users and users with neither channel enabled are skipped. Push-only
+  users without a registered token also skip generation. Preferences,
   survey version, and safety holds are checked again immediately before sending.
   Editing a survey after generation cancels an unsent note, rather than sending
   stale context. The updated survey is used in the next weekly batch.

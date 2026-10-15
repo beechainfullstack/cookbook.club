@@ -93,6 +93,28 @@ try {
   await runWorker(config, { action: 'generate', user_id: second.id, deliver_now: true }, providerFetch);
   assert.equal(ok(await admin.from('messages').select('state').eq('id', future.id).single())?.state, 'cancelled');
   console.log('PASS: pause/no-channels skip, local schedule remains in future, changed survey cancels stale notes.');
+  const inactivePush = await user(['push']);
+  ok(await admin.from('notification_settings').update({ expo_push_token: null }).eq('user_id', inactivePush.id));
+  await runWorker(config, { action: 'generate', user_id: inactivePush.id, deliver_now: true }, providerFetch);
+  assert.equal(ok(await admin.from('messages').select('id').eq('user_id', inactivePush.id))?.length, 0);
+  const expired = await user(['email']);
+  const stale = ok(await admin.from('messages').insert({ user_id: expired.id, type: 'weekly', content: '', state: 'queued',
+    cycle_key: 'expired-test', channels: ['email'], scheduled_for: new Date(Date.now() - 24 * 3600000).toISOString() }).select('id').single())!;
+  ok(await admin.from('message_deliveries').insert({ message_id: stale.id, channel: 'email' }));
+  const generatedBefore = calls.filter((c) => c.url === 'https://api.anthropic.com/v1/messages').length;
+  await runWorker(config, { action: 'generate', user_id: expired.id, deliver_now: true }, providerFetch);
+  assert.equal(ok(await admin.from('messages').select('state').eq('id', stale.id).single())?.state, 'cancelled');
+  assert.equal(ok(await admin.from('message_deliveries').select('status').eq('message_id', stale.id).single())?.status, 'skipped');
+  assert.equal(calls.filter((c) => c.url === 'https://api.anthropic.com/v1/messages').length, generatedBefore + 1);
+  console.log('PASS: tokenless push-only users skip generation; expired queue/outbox releases the next weekly cycle.');
+  const emailDelivery = ok(await admin.from('message_deliveries').select('*').eq('message_id', message.id).eq('channel', 'email').single())!;
+  ok(await admin.from('message_deliveries').update({ status: 'sending', attempted_at: new Date(Date.now() - 12 * 60000).toISOString() }).eq('id', emailDelivery.id));
+  ok(await admin.rpc('prepare_deliveries'));
+  assert.equal(ok(await admin.from('message_deliveries').select('status').eq('id', emailDelivery.id).single())?.status, 'pending');
+  ok(await admin.from('message_deliveries').update({ next_attempt_at: new Date(Date.now() + 3600000).toISOString() }).eq('id', emailDelivery.id));
+  assert.equal(ok(await admin.rpc('claim_delivery', { p_user_id: first.id }))?.length, 0);
+  ok(await admin.from('message_deliveries').update({ status: 'accepted' }).eq('id', emailDelivery.id));
+  console.log('PASS: interrupted email lease recovers and claim respects retry backoff.');
   for (const [text, classified] of [['I want to hurt myself', false], ['Everyone would be better off without me', true]] as const) {
     const held = await user(['email', 'push'], false, text);
     generationMode = classified ? 'safety' : 'ok';

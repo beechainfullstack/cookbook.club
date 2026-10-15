@@ -10,9 +10,10 @@ Deno.serve(async (request: Request) => {
   try {
     const body = await request.text();
     if (body.length > 4096) return reply({ error: 'request_too_large' }, 413);
-    const input: WorkRequest = JSON.parse(body);
+    let input: WorkRequest;
+    try { input = JSON.parse(body); } catch { return reply({ error: 'invalid_request' }, 400); }
     if (!input || !['work', 'generate'].includes(input.action)
-      || input.user_id !== undefined && !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(input.user_id)
+      || input.user_id !== undefined && (typeof input.user_id !== 'string' || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(input.user_id))
       || input.deliver_now !== undefined && typeof input.deliver_now !== 'boolean'
       || input.deliver_now && (input.action !== 'generate' || !input.user_id)) return reply({ error: 'invalid_request' }, 400);
     return reply(await runWorker(configFrom((key) => Deno.env.get(key)), input));

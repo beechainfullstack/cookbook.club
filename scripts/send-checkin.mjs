@@ -1,7 +1,7 @@
 const userId = process.argv[2];
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const secret = process.env.SLOW_JOB_SECRET;
-if (!userId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(userId) || !url || !secret) {
+if (!userId || !/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(userId) || !url || !secret) {
   console.error('Usage: node --env-file=.env --env-file=supabase/functions/.env.local scripts/send-checkin.mjs USER_UUID');
   process.exit(1);
 }
