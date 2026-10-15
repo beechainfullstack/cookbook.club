@@ -39,14 +39,14 @@ const providerFetch: typeof fetch = async (url, init) => {
   if (target.endsWith('/push/getReceipts')) return Response.json({ data: Object.fromEntries((body.ids as string[]).map((id) => [id, { status: 'error', details: { error: 'DeviceNotRegistered' } }])) });
   throw new Error('Unexpected provider request');
 };
-function ok<T>(result: { data: T; error: unknown }): T { if (result.error) throw result.error; return result.data; }
+function ok<T extends { data: unknown; error: unknown }>(result: T): T['data'] { if (result.error) throw result.error; return result.data; }
 async function user(channels = ['email', 'push'], paused = false, inspirations = 'Music and quiet mornings') {
   const email = `weekly-${randomUUID()}@example.test`;
   const created = ok(await admin.auth.admin.createUser({ email, email_confirm: true })).user!;
   ids.push(created.id);
   const link = ok(await admin.auth.admin.generateLink({ type: 'magiclink', email }));
   const client = createClient<Database>(status.API_URL, status.ANON_KEY, options);
-  ok(await client.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: 'magiclink' }));
+  ok(await client.auth.verifyOtp({ token_hash: link.properties!.hashed_token, type: 'magiclink' }));
   ok(await client.from('survey_answers').upsert({ user_id: created.id, priorities: ['hobbies'], goals: ['music'], inspirations, saved_step: 4 }));
   ok(await client.from('notification_settings').upsert({ user_id: created.id, channels, paused, day: 2, time: '09:00', timezone: 'UTC', expo_push_token: channels.includes('push') ? 'ExponentPushToken[test-token]' : null }));
   ok(await client.rpc('complete_onboarding'));
