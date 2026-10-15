@@ -1,0 +1,5 @@
+{
+  "imports": { "@supabase/supabase-js": "npm:@supabase/supabase-js@2.57.4" },
+  "compilerOptions": { "strict": true },
+  "tasks": { "check": "deno check weekly-worker/index.ts email-feedback/index.ts", "lint": "deno lint _shared weekly-worker email-feedback" }
+}
