@@ -1,19 +1,22 @@
-# Hosted Supabase setup (optional, still Phase 1)
+# Hosted Supabase setup (optional)
 
 Local development is fully supported without paid accounts. These are manual
-instructions for pointing the same Phase 1 app at a Supabase project you own;
-they are not executed automatically and do not enable check-in delivery.
+instructions for pointing Slow at a Supabase project you own; they are not
+executed automatically. For weekly delivery, server secrets, Vault activation,
+push credentials, and the public feedback page, also follow [Phase 2](phase-two.md).
 
 1. Create a Supabase project (Free is sufficient for development).
-2. Run the SQL in `supabase/migrations/20261014000100_phase_one.sql` in the
-   SQL editor, or use the Supabase CLI to link the intended project and
-   `supabase db push`. Inspect the project before applying migrations.
+2. Use the pinned Supabase CLI to link the intended project and run
+   `npx supabase db push` after inspecting its migration history. Apply all
+   migrations in order, not only the original Phase 1 SQL. Weekly outbound work
+   remains inert until its Vault secrets and Edge Functions are configured.
 3. In Auth settings, keep email enabled and anonymous, phone, and social login
    disabled. Enable email confirmation. The app uses only magic links;
    no password screens or social providers are implemented.
 4. Set the Site URL to `slow://auth/callback`. Add that exact callback and any
    exact Expo Go development callback to Auth's allowed redirect URLs. Avoid
-   unrestricted wildcards. Web callbacks are only needed for development.
+   unrestricted wildcards. Add the exact hosted web callback if web sign-in is
+   desired; the login-free email feedback page does not require an auth callback.
 5. For email to ordinary addresses, configure **Resend SMTP** in Supabase Auth.
    Supabase's default SMTP is restricted to project team addresses and about
    two emails per hour, so it is unsuitable for friends signing up.
@@ -30,7 +33,8 @@ they are not executed automatically and do not enable check-in delivery.
 No secrets are needed from Bee for the local acceptance flow. Hosted setup
 requires Bee's choice of Supabase project, a Resend account, and a verified
 sending domain. EAS account/project setup and Apple/Google membership are not
-necessary for the local Phase 1 flow and remain later-phase work.
+necessary for the local Phase 1 flow. Phase 2 push verification requires an Expo
+project and configured development build. Store distribution remains Phase 3.
 
 ## Documentation
 

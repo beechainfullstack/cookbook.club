@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Switch, View } from 'react-native';
 import { Brand, Body, Button, Choice, colors, ErrorText, Field, Heading, Label, Screen, styles } from '../components/ui';
 import { savePreferences } from '../lib/data';
-import { requestPushPermission } from '../lib/notifications';
+import { registerPushToken } from '../lib/notifications';
 import { DAYS, defaultPreferences, type Preferences, validatePreferences } from '../lib/settings';
 
 export function PreferencesScreen({ userId, initial, onboarding, onSaved, onBack }: {
@@ -16,11 +16,12 @@ export function PreferencesScreen({ userId, initial, onboarding, onSaved, onBack
   const update = (changes: Partial<Preferences>) => { setPreferences((previous) => ({ ...previous, ...changes })); setError(null); };
 
   async function togglePush(on: boolean) {
-    if (!on) { update({ channels: preferences.channels.filter((channel) => channel !== 'push') }); return; }
+    if (!on) { update({ channels: preferences.channels.filter((channel) => channel !== 'push'), expo_push_token: null }); return; }
     setPermissionBusy(true);
     setError(null);
     try {
-      if (await requestPushPermission()) update({ channels: [...preferences.channels.filter((channel) => channel !== 'push'), 'push'] });
+      const token = await registerPushToken(true);
+      if (token) update({ channels: [...preferences.channels.filter((channel) => channel !== 'push'), 'push'], expo_push_token: token });
       else setError('Push permission is off. You can enable it in your device settings, or use email instead.');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Couldn’t request push permission. Try again or use email.');
@@ -34,9 +35,14 @@ export function PreferencesScreen({ userId, initial, onboarding, onSaved, onBack
     setBusy(true);
     setError(null);
     try {
+      if (next.channels.includes('push') && !next.expo_push_token) {
+        const token = await registerPushToken(true);
+        if (!token) throw new Error('Push permission is off. Turn push off to save email-only preferences.');
+        next.expo_push_token = token;
+      }
       await savePreferences(userId, next, onboarding);
       await onSaved();
-    } catch { setError('Couldn’t save your preferences. Check your connection and try again.'); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Couldn’t save your preferences. Check your connection and try again.'); }
     finally { setBusy(false); }
   }
 

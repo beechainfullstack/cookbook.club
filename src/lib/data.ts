@@ -8,11 +8,13 @@ import { EMPTY_SURVEY, type Season, type Survey } from './survey';
 
 export type Photo = Database['public']['Tables']['photos']['Row'] & { url: string };
 export type Message = Database['public']['Tables']['messages']['Row'];
+export type Feedback = Database['public']['Tables']['feedback']['Row'];
 export type UserData = {
   onboarded: boolean;
   survey: Survey;
   preferences: Preferences | null;
   lastMessage: Message | null;
+  lastFeedback: Feedback | null;
 };
 
 export async function loadUserData(userId: string): Promise<UserData> {
@@ -23,11 +25,14 @@ export async function loadUserData(userId: string): Promise<UserData> {
     supabase.from('messages').select('*').eq('user_id', userId).not('sent_at', 'is', null).order('sent_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   for (const result of [profile, survey, settings, message]) if (result.error) throw result.error;
+  const feedback = message.data ? await supabase.from('feedback').select('*').eq('message_id', message.data.id).eq('user_id', userId).maybeSingle() : null;
+  if (feedback?.error) throw feedback.error;
   return {
     onboarded: Boolean(profile.data?.onboarding_completed_at),
     survey: survey.data || EMPTY_SURVEY,
     preferences: settings.data ? { ...settings.data, time: settings.data.time.slice(0, 5), channels: settings.data.channels as Channel[] } : null,
     lastMessage: message.data,
+    lastFeedback: feedback?.data ?? null,
   };
 }
 
@@ -41,12 +46,18 @@ export async function saveSurvey(userId: string, survey: Survey) {
 
 export async function savePreferences(userId: string, preferences: Preferences, finishOnboarding: boolean) {
   const { day, time, timezone, channels, paused } = preferences;
-  const { error } = await supabase.from('notification_settings').upsert({ user_id: userId, day, time, timezone, channels, paused }, { onConflict: 'user_id' });
+  const { error } = await supabase.from('notification_settings').upsert({ user_id: userId, day, time, timezone, channels, paused,
+    expo_push_token: channels.includes('push') ? preferences.expo_push_token ?? null : null }, { onConflict: 'user_id' });
   if (error) throw error;
   if (finishOnboarding) {
     const { error: onboardingError } = await supabase.rpc('complete_onboarding');
     if (onboardingError) throw onboardingError;
   }
+}
+
+export async function saveFeedback(userId: string, messageId: string, rating: -1 | 1, comment: string) {
+  const { error } = await supabase.from('feedback').upsert({ user_id: userId, message_id: messageId, rating, comment: comment.trim() || null }, { onConflict: 'message_id,user_id' });
+  if (error) throw error;
 }
 
 export async function loadPhotos(userId: string): Promise<Photo[]> {

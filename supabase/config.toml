@@ -4,6 +4,12 @@
 # working directory name when running `supabase init`.
 project_id = "slow"
 
+[functions.weekly-worker]
+verify_jwt = false
+
+[functions.email-feedback]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.
